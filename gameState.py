@@ -25,12 +25,19 @@ class GameState:
         self.wins         = 0
         self.prev_round   = 0
         self.round        = 0
-        self.stage_attack = 0
-        self.stage_health = 0 
-        self.stage_score  = 0
-        self.shop_attack  = 0
-        self.shop_health  = 0
-        self.shop_score   = 0
+
+        self.prev_stage_attack = 0
+        self.stage_attack      = 0
+        self.prev_stage_health = 0
+        self.stage_health      = 0 
+        self.prev_stage_score  = 0
+        self.stage_score       = 0
+        self.prev_shop_attack  = 0
+        self.shop_attack       = 0
+        self.prev_shop_health  = 0
+        self.shop_health       = 0
+        self.prev_shop_score   = 0
+        self.shop_score        = 0
 
 
         self.open_stage_spots = [0, 1, 2, 3, 4]
@@ -93,12 +100,19 @@ class GameState:
         self.wins         = 0
         self.prev_round   = 0
         self.round        = 0
-        self.stage_attack = 0
-        self.stage_health = 0 
-        self.stage_score  = 0
-        self.shop_attack  = 0
-        self.shop_health  = 0
-        self.shop_score   = 0
+
+        self.prev_stage_attack = 0
+        self.stage_attack      = 0
+        self.prev_stage_health = 0
+        self.stage_health      = 0 
+        self.prev_stage_score  = 0
+        self.stage_score       = 0
+        self.prev_shop_attack  = 0
+        self.shop_attack       = 0
+        self.prev_shop_health  = 0
+        self.shop_health       = 0
+        self.prev_shop_score   = 0
+        self.shop_score        = 0
 
         self.open_stage_spots = [0, 1, 2, 3, 4]
         self.avail_shop_pets  = [0, 1, 2]
@@ -138,6 +152,10 @@ class GameState:
             print(f"{ani:<5}  ", end="") if ani not in self.empty_spot else print("_____  ", end="")
         print(f"\nAttack: {self.shop_attack} | Health: {self.shop_health} | Score: {self.shop_score}")
         print("\n")
+
+        print("SCORES:")
+        print(f"Prev Stage: {self.prev_stage_score}")
+        print(f"CURR Stage: {self.stage_score}")
     
     def get_empty_stage_spots(self):
         empty_stage_spots = []
@@ -383,13 +401,24 @@ class GameState:
 
         return stage_attack, stage_health, stage_score
 
+    def return_prev_state(self):
+        return self.prev_stage_attack, self.prev_stage_health, self.prev_stage_score, \
+               self.prev_shop_attack, self.prev_shop_health, self.prev_shop_score
 
+    def save_prev_state(self, stage_attack, stage_health, stage_score, shop_attack, shop_health, shop_score):
+        self.prev_stage_attack = stage_attack
+        self.prev_stage_health = stage_health
+        self.prev_stage_score  = stage_score
+        self.prev_shop_attack  = shop_attack
+        self.prev_shop_health  = shop_health
+        self.prev_shop_score   = shop_score
 
-    def update_game_state(self):
+    def update_game_state(self, iteration):
         # Get regions for ML models to classify
         numbs_regions, wins_region  = self.screen.get_game_state_regions()
         stage_regions, shop_regions = self.screen.get_stage_shop_regions()
 
+        # Classify each health and attack of both shop and stage and get values
         self.stage_attack, self.stage_health, self.stage_score = self.get_total_score(stage_regions)
         self.shop_attack,  self.shop_health, self.shop_score   = self.get_total_score(shop_regions)
 
@@ -428,9 +457,12 @@ class GameState:
         self.avail_food       = self.get_avail_food()
         self.stage_pos        = self.get_stage_positions()
         
-        
+
+
     def return_game_state(self):
-        return self.gold, self.lives, self.wins, self.round, self.result, self.new_round
+        return self.gold, self.lives, self.wins, self.round, self.result, self.new_round,\
+               self.stage_attack, self.stage_health, self.stage_score,\
+               self.shop_attack, self.shop_health, self.shop_score
 
 
     def get_situation(self):
