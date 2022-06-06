@@ -6,6 +6,7 @@ BASE_IMGS      = os.path.join(IMG_DIR, "base_imgs")
 SIT_IMG_DIR    = os.path.join(IMG_DIR, "situation_imgs")
 ACTION_IMG_DIR = os.path.join(IMG_DIR, "action_imgs")
 MODELS_DIR     = os.path.join(HERE, "models")
+ACTION_W_DIR   = os.path.join(HERE, "saved_action_weights")
 
 
 NAME_TEAM_IMG = os.path.join(BASE_IMGS, "name_team.png")

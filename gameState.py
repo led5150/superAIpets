@@ -45,6 +45,7 @@ class GameState:
         self.sell_idxs        = []
         self.combine_idxs     = []
         self.buy_combine_idxs = []
+        self.freeze_like_idxs = []
         self.avail_food       = [6]
         self.stage_pos        = []
 
@@ -57,7 +58,7 @@ class GameState:
         self.screen = ScreenStuff()
 
         # Load ML Models
-        self.numbs_ML_Model   = pickle.load(open(NUMBS_LR_MODEL, 'rb'))
+        self.numbs_ML_Model   = pickle.load(open(NUMBS_MLP_MODEL, 'rb'))
         self.wins_ML_Model    = pickle.load(open(WINS_LR_MODEL, 'rb'))
         self.situ_ML_Model    = pickle.load(open(SITU_LR_MODEL, 'rb'))
         self.anifood_ML_Model = pickle.load(open(ANIFOOD_LR_MODEL, 'rb'))
@@ -80,7 +81,8 @@ class GameState:
             "freeze_pet":       4,
             "buy_food":         5,
             "move_pet":         6,
-            "combine_pet":      7
+            "combine_pet":      7,
+            "freeze_like_pet":  8,
         }
         self.attack_region_coords = (6, 243, 90, 83)
         self.health_region_coords = (98, 243, 90, 83)
@@ -118,6 +120,7 @@ class GameState:
         self.avail_shop_pets  = [0, 1, 2]
         self.sell_idxs        = []
         self.combine_idxs     = []
+        self.freeze_like_idxs = []
         self.avail_food       = [6]
         self.stage_pos        = []
 
@@ -244,20 +247,29 @@ class GameState:
         rand_idx = random.randint(0, len(self.avail_shop_pets) - 1)
         rand_pet = self.avail_shop_pets[rand_idx]
         self.screen.buy_sell_freeze(rand_pet, "freeze")
+    
+    def freeze_like_pet(self):
+        # get random index of pet in shop
+        rand_idx = random.randint(0, len(self.freeze_like_idxs) - 1)
+        rand_pet = self.freeze_like_idxs[rand_idx]
+        self.screen.buy_sell_freeze(rand_pet, "freeze")
 
     def buy_food(self):
         # get random index of pet in shop
         try:
             rand_idx  = random.randint(0, len(self.avail_food) - 1)
             rand_food = self.avail_food[rand_idx]
+            food_str  = self.shop[rand_food]
         except:
             print("BUYING FOOD FAILED")
             print("RAND IDX is:", rand_idx)
             sleep(5)
             return
-
-        rand_pet  = random.randint(0, len(self.stage_pos) - 1)
-        rand_dest = self.stage_pos[rand_pet] 
+        if food_str in ["salad", "can", "pizza", "sushi", ]:
+            rand_dest = 3
+        else:
+            rand_pet  = random.randint(0, len(self.stage_pos) - 1)
+            rand_dest = self.stage_pos[rand_pet] 
 
         self.screen.buy_sell_freeze(rand_food, rand_dest)
 
@@ -287,15 +299,30 @@ class GameState:
                         if pet == pet2:
                             combine_idxs.append((shop_idx, pet_idx))
         return combine_idxs
+    
+    def get_freeze_like_idxs(self):
+        freeze_idxs = []
+        for shop_idx, pet in enumerate(self.shop):
+            if shop_idx > 4:
+                break
+            if pet not in self.empty_spot:
+                for pet_idx, pet2 in enumerate(self.stage):
+                    if pet2 not in self.empty_spot:
+                        if pet == pet2:
+                            freeze_idxs.append(shop_idx)
+        return freeze_idxs
 
     def get_combine_indxs(self):
         combine_idxs = []
         for idx1, pet in enumerate(self.stage):
-            for idx2, pet2 in enumerate(self.stage):
-                if idx1 == idx2:
-                    continue
-                if pet == pet2:
-                    combine_idxs.append((idx1, idx2))
+            if pet not in self.empty_spot:
+                for idx2, pet2 in enumerate(self.stage):
+                    if pet2 not in self.empty_spot:
+                        if idx1 == idx2:
+                            continue
+                        if pet == pet2:
+                            combine_idxs.append((idx1, idx2))
+        return combine_idxs
 
     def buy_combine_pet(self):
         # Get number of possible combinations
@@ -332,6 +359,8 @@ class GameState:
             possible_actions.append(self.actions["move_pet"])
         if self.combine_idxs:
             possible_actions.append(self.actions["combine_pet"])
+        if self.freeze_like_idxs:
+            possible_actions.append(self.actions["freeze_like_pet"])
         #TODO: Add a no-op
         
         return possible_actions
@@ -456,6 +485,7 @@ class GameState:
         self.avail_shop_pets  = self.get_avail_shop_pets()
         self.avail_food       = self.get_avail_food()
         self.stage_pos        = self.get_stage_positions()
+        self.freeze_like_idxs = self.get_freeze_like_idxs()
         
 
 
@@ -514,11 +544,20 @@ class GameState:
         self.gold = 10
         self.screen.end_turn()
 
+        # Sleep to avoid erroneously updating gold back to 0
+        sleep(5)
+
     def roll(self):
         self.screen.roll()
     
     def clickthrough(self):
         self.screen.clickthrough()
+
+    def excess_gold_back(self):
+        self.screen.excess_gold_back()
+    
+    def excess_gold_confirm(self):
+        self.screen.excess_gold_confirm()
 
 
     

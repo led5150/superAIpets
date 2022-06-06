@@ -28,7 +28,9 @@ class ScreenStuff:
         self.end_coords  = (1100, 700)
         self.clickthrough_coords = (1100, 400) # Middle of screen to the right
         self.start_game_coords   = (750, 350)
-        self.sell_freeze_coords     = (700, 700)
+        self.sell_freeze_coords  = (700, 700)
+        self.excess_gold_back_coords = (428, 489)
+        self.excess_gold_conf_coords = (847, 489)
 
         # Set Vars for game state
         self.NUM_CROP_W   = 82
@@ -74,6 +76,12 @@ class ScreenStuff:
         # Get initial screenshot
         print("Getting initial IMage!!!")
         self.get_img()
+    
+    def excess_gold_back(self):
+        self.click_on(self.excess_gold_back_coords[0], self.excess_gold_back_coords[1], clicks=1)
+
+    def excess_gold_confirm(self):
+        self.click_on(self.excess_gold_conf_coords[0], self.excess_gold_conf_coords[1], clicks=1)
 
     def load_team_name_positions(self):
         threshold = 0.75
