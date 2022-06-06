@@ -1,0 +1,162 @@
+NOTES:
+
+TODO:
+
+    1. Train ML model to recognize attack/health of animals in shop and stage. -- DONE!!
+    2. Build the thing that will count those values and create a score for stage  -- DONE!!!
+       and shop.
+            - Consider both seperately? Or as a whole? -- We cosider as whole, but have ability to do both.
+
+    3. Modify get_possible_actions to return a complete list of all the possible
+       actions. ie. if we can buy an animal, we can put it in any empty spot
+       so its buy - sheep - spot 1, 2, 3, 4, 5 etc.
+    4. build the thing, (dict) or a class that will hold all of the possible
+       actions and their weights.  -- DONE! However, still WIP
+    
+ISSUES:
+
+    1. Selling - Need to keep track of prev gold, and offset the penalty given 
+                 to reflect the amount of gold gained.
+    2. Roll    - Need to keep track of the animals that show up in shop and 
+                 give a slight reward for finding like animals. (also higher level animals?)
+    
+Ideas:
+    - Do we need to store each possible variation of the game state as a 
+      step? ... massive memory usage but might be the "right" way to do it.
+    - Should we have a seperate step just for order? like train another model
+      whose job it is to just monitor the order of the animals and optimize that?
+
+
+
+Q Learning Gameplan:
+
+Want to maximize the strength of the team! So we need to evaluate this by 
+the total attack/defense we have. (need to machine learn the heart/fist values)
+from each animal on stage and in shop.
+
+What is an episode and what is a round?....
+
+A full episode must be an entire run of the game, up until a win or loss.
+
+An individual action can be rewarded by analyzing if we have increased the 
+strength of our team.
+
+A round will consist of something like 7 - 10 actions, each of which can be 
+weighted to come up with a total reward for that round, with either a bonus 
+reward for winning or some penalty for losing. Draws can be weighted slightly
+positive as we didn't die! haha.
+
+We're going to need some sort of lookahead... to be able to analyze the best 
+10 possible moves for each round, then picking the best possible 10 moves.
+
+
+Scoring:
+
+    The goal is to maximize the teams attack and defense. So naturally buying 
+    and combining animals will be the way to go. We will need to also monitor
+    the strength of the shop, since with 0 animals the shop strenght will be zero
+    but rolling might increase that, and increase our chances of improving the
+    stage... maybe 1/4 the weight for improving the shop score.
+
+    Here's the Q learning reward Algo:
+
+    Q_table[current_state, action] = (1-lr) * Q_table[current_state, action] +lr*(reward + gamma*max(Q_table[next_state,:]))
+
+        We would replace the table with our dict of actions/rewards
+
+
+    total_episode_reward = total_episode_reward + reward
+
+Animals:
+
+    We'll need to come up with classes for each animal type, using their base
+    stats as a reward parameter. We'll also need to score the animals ability
+    and add that as a bonus.
+
+
+Acitons!
+
+Might need to come up with a running dict that holds all possible actions, with
+a weight assigned to them... Every time we find a new action we can add it to
+the list, initialize it to 0, then if it is taken, we can update it's weight with
+the immediate benefit, then adjust it using the result of the round.
+
+
+Buy:
+    If we have at least 3 gold, and have an empty space, we can buy any animal
+    in the shop. We can create a list of all animals to buy, giving them weights
+    based on their attack and defense... and ability?  Perhaps some sort of 
+    weight can be added to each animal class? like ability bonus?
+
+    If we have at least 3 gold and there is food in the shop, we can buy a food.
+    Foods that add attack and health will naturally give a bonus, so they take
+    care of themselves.  Foods like the melon, can be given a hardcoded bonus, 
+    like +10 or +20 since it adds 20 defense for example.
+
+Buy_combine:
+
+    Same as buy, but with an added bonus for combiing, and even greater for 
+    leveling up.
+
+Selling:
+    Penalty equal to the decrease in team strength, but offset slightly depending
+    on how much gold we get back.
+
+Rolling:
+    Can potentially increase the shop value. Can potentially find animals to 
+    combine!
+
+    Small bonus for general increase in shop health/attack, but bigger bonus
+    for getting animals that match and even larger for matching animals 
+    we already have.
+
+
+
+
+Might need to have weights for each possible animal/possible actions...
+
+Might need to keep track of if we won/lost/drew the previous round.
+
+
+
+1. Figure out how to programatically cut out the top status bars.
+    - Need to standardize size we create
+    - Need to find locations to cut from
+    - make this general to be used for animals later!
+    - Done!
+2. Generate training data from all pictures for numbers
+    - Do we need to handle the wins on seperately?
+    - Done!
+
+3. Train AIs to recognize numbers
+    - Done!
+
+4. Generate training data for animals... (maybe start level 1 then above?)
+    - Done!
+
+Train AIs to recognize numbers
+DONE!!!
+
+Location shits
+
+Animals who are about to play shall be called on the "stage" 
+
+STAGE LOCATIONS:
+
+Stage 0:  X = 607, Y = 458, W = 192, H = 330
+Stage 1:  X = 799, Y = 458, W = 192, H = 330
+Stage 2:  x = 991, Y = 458, W = 192, H = 330
+Stage 3:  x = 1183, Y = 458, W = 192, H = 330
+Stage 4:  x = 1375, Y = 458, W = 192, H = 330
+
+SHOP LOCATIONS:
+
+Shop 0 :  X = 607, Y = 843, W = 192 H = 330
+Shop 1 :  X = 799, Y = 843, W = 192 H = 330
+Shop 2 :  X = 991, Y = 843, W = 192 H = 330
+Shop 3 :  X = 1183, Y = 843, W = 192 H = 330
+Shop 4 :  X = 1375, Y = 843, W = 192 H = 330
+Shop 5 :  X = 1567, Y = 843, W = 192 H = 330
+Shop 6 :  X = 1759, Y = 843, W = 192 H = 330
+
+
