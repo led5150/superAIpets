@@ -408,15 +408,14 @@ def main():
                 if not check_pic_names(pic_names):
                     continue
                 else:
-                    # for p in pic_names[:10]:
-                    #     if p not in attack_pic_dict:
-                    #         attack_pic_dict[p] = 0
-                    # for p in pic_names[10:]:
-                    #     if p not in health_pic_dict:
-                    #         health_pic_dict[p] = 0
                     while True:
                         try:
-                            take_batch_of_screenshots2(num_taken, attack_pic_dict, health_pic_dict, pic_names, [stage_coords, shop_ani_coords])
+                            print("Hello.....")
+                            take_batch_of_screenshots2(num_taken,attack_pic_dict,health_pic_dict,pic_names,[stage_coords, shop_ani_coords])
+                            break
+
+                        except Exception as e:
+                            print(e)
                             break
                         except KeyboardInterrupt:
                             break

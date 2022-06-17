@@ -62,8 +62,8 @@ class GameState:
         self.wins_ML_Model    = pickle.load(open(WINS_LR_MODEL, 'rb'))
         self.situ_ML_Model    = pickle.load(open(SITU_LR_MODEL, 'rb'))
         self.anifood_ML_Model = pickle.load(open(ANIFOOD_LR_MODEL, 'rb'))
-        self.attack_ML_Model  = pickle.load(open(ATTACK_LR_MODEL, 'rb'))
-        self.health_ML_Model  = pickle.load(open(HEALTH_LR_MODEL, 'rb'))
+        self.attack_ML_Model  = pickle.load(open(ATTACK_MLP_MODEL, 'rb'))
+        self.health_ML_Model  = pickle.load(open(HEALTH_MLP_MODEL, 'rb'))
 
         self.situ_map = {
             0: "loading_screen",
@@ -198,12 +198,13 @@ class GameState:
             
         if self.wins > self.prev_wins:
             self.result = 'won'
-            self.prev_wins = self.wins
         elif self.lives < self.prev_lives:
             self.result = "lost"
-            self.prev_lives = self.lives
         else:
             self.result = "drew"
+        
+        self.prev_wins  = self.wins
+        self.prev_lives = self.lives
 
 
     def buy_pet(self):
@@ -449,7 +450,7 @@ class GameState:
 
         # Classify each health and attack of both shop and stage and get values
         self.stage_attack, self.stage_health, self.stage_score = self.get_total_score(stage_regions)
-        self.shop_attack,  self.shop_health, self.shop_score   = self.get_total_score(shop_regions)
+        self.shop_attack,  self.shop_health,  self.shop_score  = self.get_total_score(shop_regions[:5])
 
         # Classify the regions and get values
         self.gold  = self.get_single_value("numbs", numbs_regions[0])
@@ -460,7 +461,7 @@ class GameState:
         # Figure out if this is a new round or if we are in the middle of one
         if self.prev_round != self.round:
             self.prev_round = self.round
-            self.new_round = True
+            self.new_round  = True
         else:
             self.new_round = False
 
