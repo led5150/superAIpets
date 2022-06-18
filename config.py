@@ -109,5 +109,5 @@ anifoods = [
 
 values = range(-1, len(anifoods))
 
-anifood_map = dict(zip(values, anifoods))
+anifood_str_map = dict(zip(values, anifoods))
 

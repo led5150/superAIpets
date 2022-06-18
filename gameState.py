@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from xxlimited import foo
 from config import *
 
 from screenStuff import ScreenStuff
@@ -10,6 +11,8 @@ import numpy as np
 import skimage.measure
 from time import sleep
 import random
+
+from aniFood import aniFoodMap
 
 class GameState:
     def __init__(self):
@@ -89,10 +92,12 @@ class GameState:
 
         self.empty_spot = ["empty", "none"]
 
-        self.anifood_map = anifood_map
+        self.anifood_str_map = anifood_str_map
 
-        self.stage = ["empty"] * 5
-        self.shop  = ["empty"] * 7
+        self.aniFoodMap = aniFoodMap
+
+        self.stage = [aniFoodMap[-1] for _ in range(5)]
+        self.shop  = [aniFoodMap[0] for _ in range(7)]
 
     def reset(self):
         self.gold         = 10
@@ -129,8 +134,8 @@ class GameState:
 
         
 
-        self.stage = ["empty"] * 5
-        self.shop  = ["empty"] * 7
+        self.stage = [aniFoodMap[-1] for _ in range(5)]
+        self.shop  = [aniFoodMap[0] for _ in range(7)]
     
     def print_game_state(self):
         print(f"Gold:  {self.gold}")
@@ -148,11 +153,11 @@ class GameState:
 
         print("\nSTAGE:\n")
         for ani in self.stage:
-            print(f"{ani:<5}  ", end="") if ani not in self.empty_spot else print("_____  ", end="")
+            print(f"{ani.get_name():<5}  ", end="") if ani.get_name() not in self.empty_spot else print("_____  ", end="")
         print(f"\nAttack: {self.stage_attack} | Health: {self.stage_health} | Score: {self.stage_score}")
         print("\n\nSHOP:\n")
         for ani in self.shop:
-            print(f"{ani:<5}  ", end="") if ani not in self.empty_spot else print("_____  ", end="")
+            print(f"{ani.get_name():<5}  ", end="") if ani.get_name() not in self.empty_spot else print("_____  ", end="")
         print(f"\nAttack: {self.shop_attack} | Health: {self.shop_health} | Score: {self.shop_score}")
         print("\n")
 
@@ -163,7 +168,7 @@ class GameState:
     def get_empty_stage_spots(self):
         empty_stage_spots = []
         for i, spot in enumerate(self.stage):
-            if spot == "empty":
+            if spot.get_name() == "empty":
                 empty_stage_spots.append(i)
         return empty_stage_spots
     
@@ -172,22 +177,22 @@ class GameState:
         for i, spot in enumerate(self.shop):
             if i > 4:
                 break
-            if spot not in self.empty_spot:
+            if spot.get_name() not in self.empty_spot:
                 avail_shop.append(i)
         return avail_shop
 
     def get_avail_food(self):
         offset = 5
         avail_food = []
-        for i, spot in enumerate(self.shop[5:]):
-            if spot not in self.empty_spot:
+        for i, spot in enumerate(self.shop[offset:]):
+            if spot.get_name() not in self.empty_spot:
                 avail_food.append(i + offset)
         return avail_food
     
     def get_stage_positions(self):
         stage_pos = []
         for i, pet in enumerate(self.stage):
-            if pet not in self.empty_spot:
+            if pet.get_name() not in self.empty_spot:
                 stage_pos.append(i)
         return stage_pos
 
@@ -207,7 +212,7 @@ class GameState:
         self.prev_lives = self.lives
 
 
-    def buy_pet(self):
+    def buy_pet(self, best_pet_idx=None):
         print("buying pet!")
         if not self.open_stage_spots:
             print("CANNOT BUY A NEW PET!!! No open spots on stage...")
@@ -217,50 +222,68 @@ class GameState:
             print("CANNOT BUY A NEW PET! No pets in shop!")
             #sleep(1)
             return
+        elif best_pet_idx is not None:
+            pet_idx       = best_pet_idx
+            rand_dest_idx = random.randint(0, len(self.open_stage_spots) - 1)
+            rand_dest     = self.open_stage_spots[rand_dest_idx]
         else:
             rand_pet_idx  = random.randint(0, len(self.avail_shop_pets) - 1)
             rand_dest_idx = random.randint(0, len(self.open_stage_spots) - 1)
-            rand_pet  = self.avail_shop_pets[rand_pet_idx]
-            rand_dest = self.open_stage_spots[rand_dest_idx]
-        #sleep(1)
-        self.screen.buy_sell_freeze(rand_pet, rand_dest)
+            pet_idx       = self.avail_shop_pets[rand_pet_idx]
+            rand_dest     = self.open_stage_spots[rand_dest_idx]
+
+        self.screen.buy_sell_freeze(pet_idx, rand_dest)
 
     def get_pets_to_sell_indecies(self):
         sell_idxs = []
         for i, pet in enumerate(self.stage):
-            if pet not in self.empty_spot:
+            if pet.get_name() not in self.empty_spot:
                 sell_idxs.append(i)
 
         return sell_idxs
 
-    def sell_pet(self):
+    def sell_pet(self, sell_idx=None):
         print("Selling pet!")
-        sell_idxs = self.get_pets_to_sell_indecies()
 
-            # rand_dest = random.randint(0, len(self.open_stage_spots))
-        rand_idx  = random.randint(0, len(sell_idxs) - 1)
-        rand_pet  = sell_idxs[rand_idx]
+        if sell_idx:
+            pet_idx = sell_idx
+        else:
+            sell_idxs = self.get_pets_to_sell_indecies()
+            rand_idx  = random.randint(0, len(sell_idxs) - 1)
+            pet_idx   = sell_idxs[rand_idx]
 
-        self.screen.buy_sell_freeze(rand_pet, "sell")
+        self.screen.buy_sell_freeze(pet_idx, "sell")
 
-    def freeze_pet(self):
+    def freeze_pet(self, freeze_idx=None):
         # get random index of pet in shop
-        rand_idx = random.randint(0, len(self.avail_shop_pets) - 1)
-        rand_pet = self.avail_shop_pets[rand_idx]
-        self.screen.buy_sell_freeze(rand_pet, "freeze")
+        if freeze_idx:
+            pet_idx = freeze_idx
+        else:
+            rand_idx = random.randint(0, len(self.avail_shop_pets) - 1)
+            pet_idx = self.avail_shop_pets[rand_idx]
+
+        self.screen.buy_sell_freeze(pet_idx, "freeze")
     
-    def freeze_like_pet(self):
-        # get random index of pet in shop
-        rand_idx = random.randint(0, len(self.freeze_like_idxs) - 1)
-        rand_pet = self.freeze_like_idxs[rand_idx]
-        self.screen.buy_sell_freeze(rand_pet, "freeze")
+    def freeze_like_pet(self, freeze_idx=None):
+        if freeze_idx:
+            pet_idx = freeze_idx
+        else:
+            # get random index of pet in shop
+            rand_idx = random.randint(0, len(self.freeze_like_idxs) - 1)
+            pet_idx = self.freeze_like_idxs[rand_idx]
 
-    def buy_food(self):
+        self.screen.buy_sell_freeze(pet_idx, "freeze")
+
+    def buy_food(self, food_idx=None):
         # get random index of pet in shop
         try:
-            rand_idx  = random.randint(0, len(self.avail_food) - 1)
-            rand_food = self.avail_food[rand_idx]
-            food_str  = self.shop[rand_food]
+            if food_idx is None:
+                rand_idx  = random.randint(0, len(self.avail_food) - 1)
+                buy_idx   = self.avail_food[rand_idx]
+                food_str  = self.shop[buy_idx].get_name()
+            else:
+                buy_idx   = food_idx
+                food_str  = self.shop[buy_idx].get_name()
         except:
             print("BUYING FOOD FAILED")
             print("RAND IDX is:", rand_idx)
@@ -272,9 +295,9 @@ class GameState:
             rand_pet  = random.randint(0, len(self.stage_pos) - 1)
             rand_dest = self.stage_pos[rand_pet] 
 
-        self.screen.buy_sell_freeze(rand_food, rand_dest)
+        self.screen.buy_sell_freeze(buy_idx, rand_dest)
 
-    def move_pet(self):
+    def move_pet(self, move_idx=None):
         rand_idx  = random.randint(0, len(self.stage_pos) - 1)
         rand_pet  = self.stage_pos[rand_idx]
         rand_dest = random.randint(0, 4)
@@ -283,7 +306,7 @@ class GameState:
 
         self.screen.move_pet(rand_pet, rand_dest)
 
-    def combine_pet(self):
+    def combine_pet(self, combine_idx=None):
         rand_int      = random.randint(0, len(self.combine_idxs) - 1)
         rand_indecies = self.combine_idxs[rand_int]
 
@@ -294,10 +317,10 @@ class GameState:
         for shop_idx, pet in enumerate(self.shop):
             if shop_idx > 4:
                 break
-            if pet not in self.empty_spot:
+            if pet.get_name() not in self.empty_spot:
                 for pet_idx, pet2 in enumerate(self.stage):
-                    if pet2 not in self.empty_spot:
-                        if pet == pet2:
+                    if pet2.get_name(0) not in self.empty_spot:
+                        if pet.get_name() == pet2.get_name():
                             combine_idxs.append((shop_idx, pet_idx))
         return combine_idxs
     
@@ -306,62 +329,77 @@ class GameState:
         for shop_idx, pet in enumerate(self.shop):
             if shop_idx > 4:
                 break
-            if pet not in self.empty_spot:
+            if pet.get_name() not in self.empty_spot:
                 for pet_idx, pet2 in enumerate(self.stage):
-                    if pet2 not in self.empty_spot:
-                        if pet == pet2:
+                    if pet2.get_name() not in self.empty_spot:
+                        if pet.get_name() == pet2.get_name():
                             freeze_idxs.append(shop_idx)
         return freeze_idxs
 
     def get_combine_indxs(self):
         combine_idxs = []
         for idx1, pet in enumerate(self.stage):
-            if pet not in self.empty_spot:
+            if pet.get_name() not in self.empty_spot:
                 for idx2, pet2 in enumerate(self.stage):
-                    if pet2 not in self.empty_spot:
+                    if pet2.get_name() not in self.empty_spot:
                         if idx1 == idx2:
                             continue
-                        if pet == pet2:
+                        if pet.get_name() == pet2.get_name():
                             combine_idxs.append((idx1, idx2))
         return combine_idxs
 
-    def buy_combine_pet(self):
-        # Get number of possible combinations
-        num_combines = len(self.buy_combine_idxs)
+    def buy_combine_pet(self, buy_id=None):
 
-        # if more than one, pick one at random
-        if num_combines > 1:
-            idx = random.randint(0, num_combines - 1)
-        else:
-            idx = 0
-        # Get the index of the pet to buy and combine
-        buy_pet     = self.buy_combine_idxs[idx][0]
-        combine_pet = self.buy_combine_idxs[idx][1]
+        buy_idx     = None
+        combine_idx = None
+
+        for i, ani in self.shop:
+            if ani.get_name() == self.anifood_str_map[buy_id]:
+                buy_idx = i
+                break
+        
+        for i, ani in self.stage:
+            if ani.get_name() == self.anifood_str_map[buy_id]:
+                combine_idx = i
+                break
+
+        # # Get number of possible combinations
+        # num_combines = len(self.buy_combine_idxs)
+        # # if more than one, pick one at random
+        # if num_combines > 1:
+        #     idx = random.randint(0, num_combines - 1)
+        # else:
+        #     idx = 0
+        # # Get the index of the pet to buy and combine
+        # buy_pet     = self.buy_combine_idxs[idx][0]
+        # combine_pet = self.buy_combine_idxs[idx][1]
 
         # Combine the pets!
-        self.screen.buy_sell_freeze(buy_pet, combine_pet)
+        self.screen.buy_sell_freeze(buy_idx, combine_idx)
 
     def get_possible_actions(self):
         possible_actions = []
         if self.gold > 0:
-            possible_actions.append(self.actions["roll"])
+            possible_actions.append((self.actions["roll"], None))
         if self.gold > 2:
             if self.avail_shop_pets and self.open_stage_spots:
-                possible_actions.append(self.actions["buy_pet"])
+                for pos in self.avail_shop_pets:
+                    possible_actions.append((self.actions["buy_pet"], self.shop[pos].get_id()))
             if self.buy_combine_idxs:
-                possible_actions.append(self.actions["buy_combine_pet"])
+                for pos in self.buy_combine_idxs:
+                    possible_actions.append((self.actions["buy_combine_pet"], self.stage[pos[1]].get_id()))
         if self.sell_idxs:
-            possible_actions.append(self.actions["sell_pet"])
+            possible_actions.append((self.actions["sell_pet"], None))
         if self.avail_shop_pets:
-            possible_actions.append(self.actions["freeze_pet"])
+            possible_actions.append((self.actions["freeze_pet"], None))
         if self.gold > 2 and self.avail_food and self.stage_pos:
-            possible_actions.append(self.actions["buy_food"])
+            possible_actions.append((self.actions["buy_food"], None))
         if self.stage_pos:
-            possible_actions.append(self.actions["move_pet"])
+            possible_actions.append((self.actions["move_pet"], None))
         if self.combine_idxs:
-            possible_actions.append(self.actions["combine_pet"])
+            possible_actions.append((self.actions["combine_pet"], None))
         if self.freeze_like_idxs:
-            possible_actions.append(self.actions["freeze_like_pet"])
+            possible_actions.append((self.actions["freeze_like_pet"], None))
         #TODO: Add a no-op
         
         return possible_actions
@@ -410,18 +448,28 @@ class GameState:
 
         return region
 
-    def get_attack(self, regions):
+    def get_attack(self, regions, stage):
         total_attack = 0
-        for reg in regions:
+        for i, reg in enumerate(regions):
             reg = self.crop_single_region(reg, self.attack_region_coords)
-            total_attack += self.get_single_value("attack", reg)
+            attack = self.get_single_value("attack", reg)
+            if stage:
+                self.stage[i].set_attack(attack)
+            else:
+                self.shop[i].set_attack(attack)
+            total_attack += attack
         return total_attack
 
-    def get_health(self, regions):
+    def get_health(self, regions, stage):
         total_health = 0
-        for reg in regions:
-            reg = self.crop_single_region(reg, self.health_region_coords)
-            total_health += self.get_single_value("health", reg)
+        for i, reg in enumerate(regions):
+            reg    = self.crop_single_region(reg, self.health_region_coords)
+            health = self.get_single_value("health", reg)
+            if stage:
+                self.stage[i].set_health(health)
+            else:
+                self.shop[i].set_health(health)
+            total_health += health
         return total_health
     
     def get_total_score(self, regions):
@@ -448,9 +496,7 @@ class GameState:
         numbs_regions, wins_region  = self.screen.get_game_state_regions()
         stage_regions, shop_regions = self.screen.get_stage_shop_regions()
 
-        # Classify each health and attack of both shop and stage and get values
-        self.stage_attack, self.stage_health, self.stage_score = self.get_total_score(stage_regions)
-        self.shop_attack,  self.shop_health,  self.shop_score  = self.get_total_score(shop_regions[:5])
+        
 
         # Classify the regions and get values
         self.gold  = self.get_single_value("numbs", numbs_regions[0])
@@ -472,11 +518,16 @@ class GameState:
         # Update animals on stage and in shop
         for i in range(len(self.stage)):
             ani_val = self.get_single_value("anifood", stage_regions[i])
-            self.stage[i] = self.anifood_map[ani_val]
+            self.stage[i] = self.aniFoodMap[ani_val]()
 
         for i in range(len(self.shop)):
             ani_val = self.get_single_value("anifood", shop_regions[i])
-            self.shop[i] = self.anifood_map[ani_val]
+            self.shop[i] = self.aniFoodMap[ani_val]()
+
+        # Classify each health and attack of both shop and stage and get values
+        # Also, update the attack and health of each pet
+        self.stage_attack, self.stage_health, self.stage_score = self.get_total_score(stage_regions, stage=True)
+        self.shop_attack,  self.shop_health,  self.shop_score  = self.get_total_score(shop_regions[:5], stage=False)
 
         # Update available shop and stage indecies
         self.sell_idxs        = self.get_pets_to_sell_indecies()
@@ -548,7 +599,7 @@ class GameState:
         # Sleep to avoid erroneously updating gold back to 0
         sleep(5)
 
-    def roll(self):
+    def roll(self, args):
         self.screen.roll()
     
     def clickthrough(self):

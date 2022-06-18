@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from ast import arg
 import re
 from config import *
 from gameState import GameState
@@ -237,7 +236,7 @@ class superAIPet:
 
             print("Possible Actions: ", end="")
             for act in actions:
-                print(f"{self.action_strs[act]}, ", end="")
+                print(f"{self.action_strs[act[0]]}, ", end="")
             print("")
 
 
@@ -255,7 +254,27 @@ class superAIPet:
             # Do stuff with action and save state
             self.all_round_actions.append(action)
             self.prev_action = action
-            self.action_map[action]()
+
+            # Determine if we have to do anything special for this action
+            if action[0] == 1: # Buying pet
+                # find position of pet to buy
+                buy_idx = None
+                for i, ani in enumerate(self.game.shop):
+                    if ani.get_name() == self.game.anifood_str_map[action[1]]:
+                        buy_idx = i
+                        break
+                action[1] = buy_idx
+            elif action[0] == 2:
+                # find position of pet to buy
+                buy_idx = None
+                for i, ani in enumerate(self.game.shop):
+                    if ani.get_name() == self.game.anifood_str_map[action[1]]:
+                        buy_idx = i
+                        break
+                action[1] = buy_idx
+
+
+            self.action_map[action[0]](action[1])
 
 
             # Move mouse over to get pop-ups off screen and allow some time for
