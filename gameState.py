@@ -96,7 +96,7 @@ class GameState:
 
         self.aniFoodMap = aniFoodMap
 
-        self.stage = [aniFoodMap[-1] for _ in range(5)]
+        self.stage = [aniFoodMap[0] for _ in range(5)]
         self.shop  = [aniFoodMap[0] for _ in range(7)]
 
     def reset(self):
@@ -153,11 +153,19 @@ class GameState:
 
         print("\nSTAGE:\n")
         for ani in self.stage:
-            print(f"{ani.get_name():<5}  ", end="") if ani.get_name() not in self.empty_spot else print("_____  ", end="")
+            print(f"{ani.get_name():<7}  ", end="") if ani.get_name() not in self.empty_spot else print("________ ", end="")
+        print("")
+        for ani in self.stage:
+            print(f"A:{ani.attack} H:{ani.health}, ", end="")
         print(f"\nAttack: {self.stage_attack} | Health: {self.stage_health} | Score: {self.stage_score}")
+
+
         print("\n\nSHOP:\n")
         for ani in self.shop:
-            print(f"{ani.get_name():<5}  ", end="") if ani.get_name() not in self.empty_spot else print("_____  ", end="")
+            print(f"{ani.get_name():<7}  ", end="") if ani.get_name() not in self.empty_spot else print("________ ", end="")
+        print("")
+        for ani in self.shop:
+            print(f"A:{ani.attack} H:{ani.health}, ", end="")
         print(f"\nAttack: {self.shop_attack} | Health: {self.shop_health} | Score: {self.shop_score}")
         print("\n")
 
@@ -168,7 +176,7 @@ class GameState:
     def get_empty_stage_spots(self):
         empty_stage_spots = []
         for i, spot in enumerate(self.stage):
-            if spot.get_name() == "empty":
+            if spot.get_name() in self.empty_spot:
                 empty_stage_spots.append(i)
         return empty_stage_spots
     
@@ -319,7 +327,7 @@ class GameState:
                 break
             if pet.get_name() not in self.empty_spot:
                 for pet_idx, pet2 in enumerate(self.stage):
-                    if pet2.get_name(0) not in self.empty_spot:
+                    if pet2.get_name() not in self.empty_spot:
                         if pet.get_name() == pet2.get_name():
                             combine_idxs.append((shop_idx, pet_idx))
         return combine_idxs
@@ -350,29 +358,13 @@ class GameState:
 
     def buy_combine_pet(self, buy_id=None):
 
-        buy_idx     = None
-        combine_idx = None
+        buy_idx   = buy_id
+        pet_name  = self.shop[buy_id].get_name()
 
-        for i, ani in self.shop:
-            if ani.get_name() == self.anifood_str_map[buy_id]:
-                buy_idx = i
-                break
-        
-        for i, ani in self.stage:
-            if ani.get_name() == self.anifood_str_map[buy_id]:
+        for i, ani in enumerate(self.stage):
+            if ani.get_name() == pet_name:
                 combine_idx = i
                 break
-
-        # # Get number of possible combinations
-        # num_combines = len(self.buy_combine_idxs)
-        # # if more than one, pick one at random
-        # if num_combines > 1:
-        #     idx = random.randint(0, num_combines - 1)
-        # else:
-        #     idx = 0
-        # # Get the index of the pet to buy and combine
-        # buy_pet     = self.buy_combine_idxs[idx][0]
-        # combine_pet = self.buy_combine_idxs[idx][1]
 
         # Combine the pets!
         self.screen.buy_sell_freeze(buy_idx, combine_idx)
@@ -389,7 +381,8 @@ class GameState:
                 for pos in self.buy_combine_idxs:
                     possible_actions.append((self.actions["buy_combine_pet"], self.stage[pos[1]].get_id()))
         if self.sell_idxs:
-            possible_actions.append((self.actions["sell_pet"], None))
+            for idx in self.sell_idxs:
+                possible_actions.append((self.actions["sell_pet"], self.stage[idx].get_id(), idx))
         if self.avail_shop_pets:
             possible_actions.append((self.actions["freeze_pet"], None))
         if self.gold > 2 and self.avail_food and self.stage_pos:
@@ -471,13 +464,29 @@ class GameState:
                 self.shop[i].set_health(health)
             total_health += health
         return total_health
-    
-    def get_total_score(self, regions):
-        stage_attack = self.get_attack(regions)
-        stage_health = self.get_health(regions)
-        stage_score  = stage_attack + stage_health
 
-        return stage_attack, stage_health, stage_score
+    def get_bonus(self, stage):
+        if stage:
+            pets = self.stage
+        else:
+            pets = self.shop
+
+        bonus = 0
+        for pet in pets:
+            if pet.get_name() in ["elpht", "parrt", "pguin", "snail", "tiger"]:
+                bonus += pet.get_abilBonus(pets)
+            else:
+                bonus += pet.get_abilBonus()
+        
+        return bonus
+    
+    def get_total_score(self, regions, stage):
+        attack = self.get_attack(regions, stage)
+        health = self.get_health(regions, stage)
+        bonus  = self.get_bonus(stage)
+        score  = attack + health + bonus
+
+        return attack, health, score
 
     def return_prev_state(self):
         return self.prev_stage_attack, self.prev_stage_health, self.prev_stage_score, \
@@ -519,6 +528,7 @@ class GameState:
         for i in range(len(self.stage)):
             ani_val = self.get_single_value("anifood", stage_regions[i])
             self.stage[i] = self.aniFoodMap[ani_val]()
+            self.stage[i].set_pos(i)
 
         for i in range(len(self.shop)):
             ani_val = self.get_single_value("anifood", shop_regions[i])

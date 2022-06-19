@@ -77,11 +77,11 @@ class aniFood:
 
 
 class none(aniFood):
-    def __init__(self, name="none", id=-1, attack=0, health=0, abilType=None, abilBonus=None, level=None, tier=None):
+    def __init__(self, name="none", id=-1, attack=0, health=0, abilType=None, abilBonus=0, level=None, tier=None):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
 
 class empty(aniFood):
-    def __init__(self, name="empty", id=0, attack=0, health=0, abilType=None, abilBonus=None, level=None, tier=None):
+    def __init__(self, name="empty", id=0, attack=0, health=0, abilType=None, abilBonus=0, level=None, tier=None):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
 
 class ant(aniFood):
@@ -229,7 +229,7 @@ class elpht(aniFood):
                 otherani = ani
         if elpos is not None and otherpos is not None:
             if elpos > otherpos:
-                return self.abilBonus * otherani.get_abilBonus
+                return self.abilBonus * otherani.get_abilBonus()
         else:
             return self.abilBonus * self.level
 
@@ -363,7 +363,7 @@ class parrt(aniFood):
     def __init__(self, name="parrt", id=46, attack=4, health=2, abilType="endTurn", abilBonus=1, level=1, tier=4):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
     def get_abilBonus(self, stage=None):
-        if self.pos <= 3:
+        if self.pos and self.pos <= 3:
             friend_bonus = stage[self.pos + 1].get_abilBonus()
             return self.level * friend_bonus
         else:
@@ -450,7 +450,10 @@ class shark(aniFood):
     def __init__(self, name="shark", id=60, attack=4, health=4, abilType="friendFaints", abilBonus=4, level=1, tier=5):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
     def get_abilBonus(self, stage=None):
-        return int((4 - self.pos) * self.abilBonus)
+        try:
+            return int((4 - self.pos) * self.abilBonus)
+        except:
+            return int(4 * self.abilBonus)
 
 class sheep(aniFood):
     def __init__(self, name="sheep", id=61, attack=2, health=2, abilType="faint", abilBonus=4, level=1, tier=3):
@@ -521,7 +524,7 @@ class tiger(aniFood):
     def __init__(self, name="tiger", id=71, attack=4, health=3, abilType="friendAheadRepeats", abilBonus=6, level=1, tier=6):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
     def get_abilBonus(self, stage=None):
-        if self.pos <= 3:
+        if self.pos and self.pos <= 3:
             return self.level * stage[self.pos + 1].get_abilBonus()
         else:
             return 0
@@ -530,7 +533,10 @@ class turky(aniFood):
     def __init__(self, name="turky", id=72, attack=3, health=4, abilType="friendSummoned", abilBonus=5, level=1, tier=6):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
     def get_abilBonus(self, stage=None):
-        return int(( 4 - self.pos )* self.abilBonus)
+        try:
+            return int(( 4 - self.pos )* self.abilBonus)
+        except:
+            return int(4 * self.abilBonus)
 
 class turtl(aniFood):
     def __init__(self, name="turtl", id=73, attack=1, health=2, abilType="faint", abilBonus=20, level=1, tier=3):

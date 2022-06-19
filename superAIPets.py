@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import re
+from tempfile import tempdir
 from config import *
 from gameState import GameState
 import sys
@@ -133,7 +134,7 @@ class superAIPet:
                          stage_attack, stage_health, stage_score,
                          shop_attack, shop_health, shop_score):
         reward = 0
-        delta_score = (stage_score - prev_stage_score) + 0.2 * (shop_score - prev_shop_score)
+        delta_score = (stage_score - prev_stage_score) + 0.1 * (shop_score - prev_shop_score)
         # delta_score = delta_score * 0.1
         print(f"DELTA SCORE: {delta_score}")
         # Stage adjustments
@@ -144,19 +145,21 @@ class superAIPet:
 
 
         # Shop Adjustments
-        # if prev_shop_score > shop_score: # bought animal, or rolled and bad animals
-        #     reward -= 0.1
-        # if prev_shop_score < shop_score: # rolled and good animals, encourage rolling
-        #     reward += 1
+        if prev_shop_score > shop_score: # bought animal, or rolled and bad animals
+            reward -= 0.1
+        if prev_shop_score < shop_score: # rolled and good animals, encourage rolling
+            reward += 1
 
 
         # Action Adjustments
+        if self.prev_action == 0:   # roll
+            reward += 0.2
         if self.prev_action == 2:   # buy_combine
             reward += 0.3
-        if self.prev_action == 7:   # combine_pet: Offset the penalty for decreasing stage score exactly
-            reward += abs(delta_score)
         if self.prev_action == 6:   # Move pet
-            reward = 0
+            reward -= 1
+        if self.prev_action == 7:   # combine_pet: Offset the penalty for decreasing stage score exactly
+            reward += abs(delta_score) + 0.5
         if self.prev_action == 8:   # Freeze Like Pet action
             reward += 0.5
 
@@ -168,7 +171,10 @@ class superAIPet:
 
     def pretty_print_action_map(self):
         for k, v in self.action_weights_map.items():
-            print(f"{self.action_strs[k]}: {v} | ", end="")
+            if k[0] in [1, 2, 3]:
+                print(f"{self.action_strs[k[0]]} {self.game.anifood_str_map[k[1]]}: {v} | ", end="")
+            else:
+                print(f"{self.action_strs[k[0]]}: {v} | ", end="")
         print("\n")
 
     def main_game(self):
@@ -232,28 +238,39 @@ class superAIPet:
             # If we have never seen this action before, add it to the map
             for action in actions:
                 if action not in self.action_weights_map:
-                    self.action_weights_map[action] = 0
+                    if action[0] == 3:  # Special case for selling pets, we return 3 variables but only
+                                        # need 2 for the action map.
+                        self.action_weights_map[(action[0], action[1])] = 0
+                    else:
+                        self.action_weights_map[action] = 0
 
             print("Possible Actions: ", end="")
             for act in actions:
-                print(f"{self.action_strs[act[0]]}, ", end="")
+                if act[1] == None:
+                    print(f"{self.action_strs[act[0]]}, ", end="")
+                else:
+                    print(f"{self.action_strs[act[0]]} {self.game.anifood_str_map[act[1]]}, ", end="")
             print("")
 
 
             # Perform some random action, or choose the best action available
             if np.random.uniform(0,1) < self.exploration_proba:
                 rand_idx = random.randint(0, len(actions) - 1)
-                print(f"RANDOM ACTION: {self.action_strs[actions[rand_idx]]}")
+                print(f"RANDOM ACTION: {self.action_strs[actions[rand_idx][0]]}")
                 action = actions[rand_idx]
             else:
                 action = self.get_best_action_possible(actions)
-                print(f"DOING BEST ACTION!!!! {self.action_strs[action]}")
+                print(f"DOING BEST ACTION!!!! {self.action_strs[action[0]]}")
 
             
             
             # Do stuff with action and save state
-            self.all_round_actions.append(action)
-            self.prev_action = action
+            if action[0] == 3:
+                self.all_round_actions.append((action[0], action[1]))
+                self.prev_action = (action[0], action[1])
+            else:
+                self.all_round_actions.append(action)
+                self.prev_action = action
 
             # Determine if we have to do anything special for this action
             if action[0] == 1: # Buying pet
@@ -263,16 +280,24 @@ class superAIPet:
                     if ani.get_name() == self.game.anifood_str_map[action[1]]:
                         buy_idx = i
                         break
+                # Why did I choose to use tuples again?
+                action = list(action)
                 action[1] = buy_idx
-            elif action[0] == 2:
+            elif action[0] == 2:  # Buy Combine Pet
                 # find position of pet to buy
                 buy_idx = None
                 for i, ani in enumerate(self.game.shop):
                     if ani.get_name() == self.game.anifood_str_map[action[1]]:
                         buy_idx = i
                         break
+                action = list(action)
                 action[1] = buy_idx
+                print("buy index:", action[1])
 
+            elif action[0] == 3:    # Sell Pet
+                pet_name = action[1]
+                pet_idx  = action[2]
+                action = [action[0], pet_idx]
 
             self.action_map[action[0]](action[1])
 
@@ -298,27 +323,32 @@ class superAIPet:
         
             
     def get_best_action_possible(self, possible_actions):
-        act_weight_subset = {key: self.action_weights_map[key] for key in possible_actions}
+        act_weight_subset = {key: self.action_weights_map[(key[0], key[1])] for key in possible_actions}
         action = max(act_weight_subset.items(), key=operator.itemgetter(1))[0]
         return action
 
     def update_weights(self, result, prev_actions, prev_round):
         if result == None:
             print("THIS IS A NEW GAME")
-        elif result == "won":
+            return
+        unique_actions = []
+        # for act in prev_actions:
+        #     unique_actions.append(act[0])
+        # unique_actions = np.unique(unique_actions)
+        if result == "won":
             print("WE WON!!!, Positive update in weights....")
-            for action in np.unique(prev_actions):
+            for action in prev_actions:
                 weight = self.action_weights_map[action]
                 self.action_weights_map[action] = self.adjust_action_weight(weight, 5, prev_round)
             
         elif result == "lost":
             print("We LOST!... Negative update in weights....")
-            for action in np.unique(prev_actions):
+            for action in prev_actions:
                 weight = self.action_weights_map[action]
-                self.action_weights_map[action] = self.adjust_action_weight(weight, -5, prev_round)
+                self.action_weights_map[action] = self.adjust_action_weight(weight, -1, prev_round)
         else:
             print("We DREW!! Draw, draw, draw....")
-            for action in np.unique(prev_actions):
+            for action in prev_actions:
                 weight = self.action_weights_map[action]
                 self.action_weights_map[action] = self.adjust_action_weight(weight, 1, prev_round)
         sleep(1.5)
