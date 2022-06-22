@@ -552,9 +552,9 @@ class GameState:
 
 
     def return_game_state(self):
-        return self.gold, self.lives, self.wins, self.round, self.result, self.new_round,\
-               self.stage_attack, self.stage_health, self.stage_score,\
-               self.shop_attack, self.shop_health, self.shop_score
+        return int(self.gold), int(self.lives), int(self.wins), int(self.round), self.result, self.new_round,\
+               int(self.stage_attack), int(self.stage_health), int(self.stage_score),\
+               int(self.shop_attack), int(self.shop_health), int(self.shop_score)
 
 
     def get_situation(self):

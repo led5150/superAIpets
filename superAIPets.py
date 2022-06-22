@@ -13,6 +13,7 @@ import pickle
 import argparse
 from datetime import datetime
 
+from actionWeightsMap import ActionWeightsMap
 
 
 class superAIPet:
@@ -23,9 +24,12 @@ class superAIPet:
         else:
             self.game = game
 
-        self.curr_state  = None
-        self.prev_action = None
-        self.iteration   = 0
+        self.curr_state   = None
+        self.prev_action  = None
+        self.iteration    = 0
+        self.total_wins   = 0
+        self.total_losses = 0
+        self.total_draws  = 0
 
         self.all_round_actions = []
 
@@ -62,36 +66,39 @@ class superAIPet:
             8: "freeze_like_pet"
         }
 
-        self.MAXITER = 15 
+        self.MAXITER = 20
 
-        self.Q_table = [set() for _ in range(30)]
+        #TODO: This has to be each possible game state....
+        # self.Q_table = [set() for _ in range(30)]
 
 
-        #initialize the exploration probability to 1
-        self.exploration_proba = 1
-        #exploartion decreasing decay for exponential decreasing
-        self.exploration_decreasing_decay = 0.001
-        # minimum of exploration proba
-        self.min_exploration_proba = 0.01
-        #discounted factor
-        self.gamma = 0.99
-        #learning rate
-        self.lr = 0.1
+        # #initialize the exploration probability to 1
+        # self.exploration_proba = 1
+        # #exploartion decreasing decay for exponential decreasing
+        # self.exploration_decreasing_decay = 0.001
+        # # minimum of exploration proba
+        # self.min_exploration_proba = 0.01
+        # #discounted factor
+        # self.gamma = 0.99
+        # #learning rate
+        # self.lr = 0.1
 
 
         # Initialize new weights dict, or load from file
         if weights_file is None:
-            self.action_weights_map = {}
+            # initialize a dummy map that sits at index 0, and the first one
+            # for round 1
+            self.action_weights_list = [ActionWeightsMap() for _ in range(2)]
         else:
             with open(weights_file, 'rb') as f:
                 # Load weights and previous iteration/exploration values
-                self.action_weights_map = pickle.load(f)
-                for k, v in self.action_weights_map.items():
-                    print(k, v)
-                self.iteration          = self.action_weights_map["iteration"]
-                self.exploration_proba  = self.action_weights_map["exploration_proba"]
-                del self.action_weights_map["iteration"]
-                del self.action_weights_map["exploration_proba"]
+                self.action_weights_list = pickle.load(f)
+                for i in range(len(self.action_weights_list)):
+                    self.pretty_print_action_map(i)
+                # self.iteration          = self.action_weights_map["iteration"]
+                # self.exploration_proba  = self.action_weights_map["exploration_proba"]
+                # del self.action_weights_map["iteration"]
+                # del self.action_weights_map["exploration_proba"]
 
         
     # Situation functions:
@@ -110,24 +117,24 @@ class superAIPet:
         self.game.pick_team_name()
         self.game.end_turn()
     
-    def get_best_action_of_next_round(self, next_round):
-        next_actions = self.Q_table[next_round]
-        best_action_val = 0
+    # def get_best_action_of_next_round(self, next_round):
+    #     next_actions = self.Q_table[next_round]
+    #     best_action_val = 0
         
-        for action in next_actions:
-            action_val = self.action_weights_map[action]
-            if action_val > best_action_val:
-                best_action_val = action_val
+    #     for action in next_actions:
+    #         action_val = self.action_weights_map[action]
+    #         if action_val > best_action_val:
+    #             best_action_val = action_val
 
-        return best_action_val
+    #     return best_action_val
 
-    def adjust_action_weight(self, prev_weight, reward, round):
-        # Adjust the action weight using the Q-Learning equation
-        # best_next_action = self.get_best_action_of_next_round(int(round + 1))
-        # new_weight = (1 - self.lr) * prev_weight + self.lr * (reward + self.gamma * best_next_action)
-        new_weight = (1 - self.lr) * prev_weight + self.lr * reward
+    # def adjust_action_weight(self, prev_weight, reward, round):
+    #     # Adjust the action weight using the Q-Learning equation
+    #     # best_next_action = self.get_best_action_of_next_round(int(round + 1))
+    #     # new_weight = (1 - self.lr) * prev_weight + self.lr * (reward + self.gamma * best_next_action)
+    #     new_weight = (1 - self.lr) * prev_weight + self.lr * reward
 
-        return new_weight
+    #     return new_weight
 
     def determine_reward(self, prev_stage_attack, prev_stage_health, prev_stage_score,
                          prev_shop_attack, prev_shop_health, prev_shop_score,
@@ -137,23 +144,31 @@ class superAIPet:
         delta_score = (stage_score - prev_stage_score) + 0.1 * (shop_score - prev_shop_score)
         # delta_score = delta_score * 0.1
         print(f"DELTA SCORE: {delta_score}")
+        reward += delta_score
         # Stage adjustments
-        if prev_stage_score > stage_score:
-            reward -= abs(delta_score)
-        if prev_stage_score < stage_score:
-            reward += delta_score
+        # if prev_stage_score > stage_score:
+        #     reward -= abs(delta_score)
+        # if prev_stage_score < stage_score:
+        #     reward += delta_score
 
-
-        # Shop Adjustments
-        if prev_shop_score > shop_score: # bought animal, or rolled and bad animals
-            reward -= 0.1
-        if prev_shop_score < shop_score: # rolled and good animals, encourage rolling
-            reward += 1
 
 
         # Action Adjustments
         if self.prev_action == 0:   # roll
-            reward += 0.2
+            # Shop Adjustments
+            if prev_shop_score > shop_score: # bought animal, or rolled and bad animals
+                reward += 0.1 * shop_score - prev_shop_score
+            elif prev_shop_score < shop_score: # rolled and good animals, encourage rolling
+                reward += (shop_score - prev_shop_score)
+            else:
+                reward += 0.05
+            # See if we rolled into any matching animals.
+            for ani in self.game.shop:
+                for ani2 in self.game.stage:
+                    if ani.get_name() not in self.game.empty_spot and ani == ani2:
+                        print("Found a matching animal! adding +1 to roll score...")
+                        reward += 1
+
         if self.prev_action == 2:   # buy_combine
             reward += 0.3
         if self.prev_action == 6:   # Move pet
@@ -167,18 +182,20 @@ class superAIPet:
         return reward
 
 
-
-
-    def pretty_print_action_map(self):
-        for k, v in self.action_weights_map.items():
+    def pretty_print_action_map(self, round):
+        print("ACTION MAP:")
+        action_weights = self.action_weights_list[round].get_map()
+        for k, v in action_weights.items():
             if k[0] in [1, 2, 3]:
                 print(f"{self.action_strs[k[0]]} {self.game.anifood_str_map[k[1]]}: {v} | ", end="")
             else:
                 print(f"{self.action_strs[k[0]]}: {v} | ", end="")
         print("\n")
 
+
     def main_game(self):
-        
+        # Give the screen some time to settle down
+        sleep(3)
         for _ in range(self.MAXITER):
             # Get previous state of game
             prev_stage_attack, prev_stage_health, prev_stage_score, \
@@ -188,16 +205,39 @@ class superAIPet:
             self.game.update_game_state(self.iteration)
             print("\033c") # Clear Terminal
             print("\n~~~ GAME STATE ~~~")
-            # print the action map and weights
-            self.pretty_print_action_map()
-            print(self.Q_table)
-            print(f"Iteration: {self.iteration}\n")
+
+            print(f"Total Iterations: {self.iteration}\n")
+            print(f"Total Wins:   {self.total_wins}")
+            print(f"Total Losses: {self.total_losses}")
+            print(f"Total Draws:  {self.total_draws}")
+            total_rounds_played = self.total_wins + self.total_losses + self.total_draws
+            if total_rounds_played > 0:
+                winrate = self.total_wins / total_rounds_played
+                print(f"Win Rate: {winrate:.3f}")
             self.game.print_game_state()
             # sleep(3)
 
             gold, lives, wins, round, result, new_round,  \
             stage_attack, stage_health, stage_score,      \
             shop_attack, shop_health, shop_score  = self.game.return_game_state()
+
+            #TODO: Update weights according to value of result!
+            if new_round == True:
+                print("New Round!")
+                sleep(2)
+                # Make sure we always have 1 extra map for the next round
+                if self.action_weights_list[round].is_empty():
+                    self.action_weights_list.append(ActionWeightsMap())
+                prev_round = int(round - 1)
+                self.update_weights(result, self.all_round_actions, prev_round)
+                # self.Q_table[prev_round].update(self.all_round_actions) # Add list to set
+                self.all_round_actions = []
+            else:
+                print("We are in the middle of the same round!!")
+                # TODO: Update the exploration probability factor
+                self.action_weights_list[round].update_exploration_proba()
+                print(f"Exploration Proba: {self.action_weights_list[round].exploration_proba}")
+
 
             self.game.save_prev_state(stage_attack, stage_health, stage_score, shop_attack, shop_health, shop_score)
 
@@ -208,41 +248,31 @@ class superAIPet:
 
             # Update the weights of the previous action based on the strength of team
             if self.prev_action is not None:
-                prev_weight = self.action_weights_map[self.prev_action]
-                self.action_weights_map[self.prev_action] = self.adjust_action_weight(prev_weight, reward, round)
-            
-            # Update the exploration probability factor
-            self.exploration_proba = max(self.min_exploration_proba, np.exp(-self.exploration_decreasing_decay * self.iteration))
-            print(f"Exploration Proba: {self.exploration_proba}")
+                self.action_weights_list[round].adjust_action_weight(self.prev_action, reward, round)
 
-            # Next round if gold is zero
+            # print the action map and weights after updating to verify
+            self.pretty_print_action_map(round)
+                        
+
+            # Next round if gold is zero... For now....
             if gold == 0:
+                self.prev_action = None
                 self.game.end_turn()
                 return
 
-            #TODO: Update weights according to value of result!
-            if new_round == True:
-                sleep(2)
-                prev_round = int(round - 1)
-                self.update_weights(result, self.all_round_actions, prev_round)
-                self.Q_table[prev_round].update(self.all_round_actions) # Add list to set
-                self.all_round_actions = []
-            else:
-                print("We are in the middle of the same round!!")
-
-            
 
             # Find possible actions
             actions = self.game.get_possible_actions()
 
             # If we have never seen this action before, add it to the map
             for action in actions:
-                if action not in self.action_weights_map:
+                if action not in self.action_weights_list[round].get_map():
                     if action[0] == 3:  # Special case for selling pets, we return 3 variables but only
                                         # need 2 for the action map.
-                        self.action_weights_map[(action[0], action[1])] = 0
+                        # self.action_weights_map[(action[0], action[1])] = 0
+                        self.action_weights_list[round].add_new_action((action[0], action[1]))
                     else:
-                        self.action_weights_map[action] = 0
+                        self.action_weights_list[round].add_new_action(action)
 
             print("Possible Actions: ", end="")
             for act in actions:
@@ -254,12 +284,12 @@ class superAIPet:
 
 
             # Perform some random action, or choose the best action available
-            if np.random.uniform(0,1) < self.exploration_proba:
+            if np.random.uniform(0,1) < self.action_weights_list[round].exploration_proba:
                 rand_idx = random.randint(0, len(actions) - 1)
                 print(f"RANDOM ACTION: {self.action_strs[actions[rand_idx][0]]}")
                 action = actions[rand_idx]
             else:
-                action = self.get_best_action_possible(actions)
+                action = self.action_weights_list[round].get_best_action_possible(actions)
                 print(f"DOING BEST ACTION!!!! {self.action_strs[action[0]]}")
 
             
@@ -308,10 +338,12 @@ class superAIPet:
             sleep(3)
 
             self.iteration += 1
+            self.action_weights_list[round].iteration += 1
 
             self.update_img()
         
         print("MAX ITERATIONS REACHED!")
+        self.prev_action = None
         self.game.end_turn()
         sleep(.5)
         self.game.excess_gold_confirm()
@@ -322,35 +354,40 @@ class superAIPet:
         
         
             
-    def get_best_action_possible(self, possible_actions):
-        act_weight_subset = {key: self.action_weights_map[(key[0], key[1])] for key in possible_actions}
-        action = max(act_weight_subset.items(), key=operator.itemgetter(1))[0]
-        return action
+    # def get_best_action_possible(self, possible_actions):
+    #     act_weight_subset = {key: self.action_weights_map[(key[0], key[1])] for key in possible_actions}
+    #     action = max(act_weight_subset.items(), key=operator.itemgetter(1))[0]
+    #     return action
 
     def update_weights(self, result, prev_actions, prev_round):
+        # TODO: THis is broken now until we have a concept of each possible
+        #       game state.
         if result == None:
             print("THIS IS A NEW GAME")
             return
-        unique_actions = []
+        # unique_actions = []
         # for act in prev_actions:
         #     unique_actions.append(act[0])
         # unique_actions = np.unique(unique_actions)
         if result == "won":
             print("WE WON!!!, Positive update in weights....")
-            for action in prev_actions:
-                weight = self.action_weights_map[action]
-                self.action_weights_map[action] = self.adjust_action_weight(weight, 5, prev_round)
+            self.total_wins += 1
+            # for action in prev_actions:
+            #     weight = self.action_weights_map[action]
+            #     self.action_weights_map[action] = self.adjust_action_weight(weight, 5, prev_round)
             
         elif result == "lost":
             print("We LOST!... Negative update in weights....")
-            for action in prev_actions:
-                weight = self.action_weights_map[action]
-                self.action_weights_map[action] = self.adjust_action_weight(weight, -1, prev_round)
+            self.total_losses += 1
+            # for action in prev_actions:
+            #     weight = self.action_weights_map[action]
+            #     self.action_weights_map[action] = self.adjust_action_weight(weight, -1, prev_round)
         else:
             print("We DREW!! Draw, draw, draw....")
-            for action in prev_actions:
-                weight = self.action_weights_map[action]
-                self.action_weights_map[action] = self.adjust_action_weight(weight, 1, prev_round)
+            self.total_draws += 1
+            # for action in prev_actions:
+            #     weight = self.action_weights_map[action]
+            #     self.action_weights_map[action] = self.adjust_action_weight(weight, 1, prev_round)
         sleep(1.5)
             
 
@@ -389,8 +426,8 @@ class superAIPet:
 
                 # Allow enough time for the game to update the screen so we
                 # don't get bad values for the game!
-                if situ in ["loading_screen", "name_team", "clickthrough"]:
-                    sleep(7)
+                if situ in ["loading_screen", "name_team", "clickthrough", "unknown"]:
+                    sleep(5)
                 
 
 
@@ -405,11 +442,11 @@ class superAIPet:
                         # Add the game state, i.e. the iteration number and the 
                         # hyperparameters to the dict
 
-                        self.action_weights_map["iteration"] = self.iteration
-                        self.action_weights_map["exploration_proba"] = self.exploration_proba
+                        # self.action_weights_map["iteration"] = self.iteration
+                        # self.action_weights_map["exploration_proba"] = self.exploration_proba
 
                         with open(fpath, 'wb') as f:
-                            pickle.dump(self.action_weights_map, f)
+                            pickle.dump(self.action_weights_list, f)
                     else:
                         print("okay! did not save weights!")
 

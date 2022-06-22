@@ -18,6 +18,11 @@ class aniFood:
         self.pos       = None
         self.foodHeld  = None
 
+    def __eq__(self, __o: object) -> bool:
+        if self.name == __o.name:
+            return True
+        return False
+
     def get_level(self):
         return self.level
     
@@ -77,11 +82,11 @@ class aniFood:
 
 
 class none(aniFood):
-    def __init__(self, name="none", id=-1, attack=0, health=0, abilType=None, abilBonus=0, level=None, tier=None):
+    def __init__(self, name="none", id=-1, attack=0, health=0, abilType=0, abilBonus=0, level=0, tier=0):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
 
 class empty(aniFood):
-    def __init__(self, name="empty", id=0, attack=0, health=0, abilType=None, abilBonus=0, level=None, tier=None):
+    def __init__(self, name="empty", id=0, attack=0, health=0, abilType=0, abilBonus=0, level=0, tier=0):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
 
 class ant(aniFood):
@@ -131,7 +136,7 @@ class camel(aniFood):
         return self.abilBonus * self.level
 
 class can(aniFood):
-    def __init__(self, name="can", id=9, attack=2, health=1, abilType="food", abilBonus=3, level=None, tier=4):
+    def __init__(self, name="can", id=9, attack=2, health=1, abilType="food", abilBonus=3, level=0, tier=4):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
 
 class cat(aniFood):
@@ -207,7 +212,6 @@ class dragn(aniFood):
     def get_abilBonus(self, stage=None):
         return self.abilBonus * self.level
 
-# IDS FUCKED FROM HERE ON
 class duck(aniFood):
     def __init__(self, name="duck", id=23, attack=2, health=3, abilType="sell", abilBonus=1, level=1, tier=1):
         super().__init__(name, id, attack, health, abilType, abilBonus, level, tier)
@@ -385,8 +389,11 @@ class pguin(aniFood):
     def get_abilBonus(self, stage=None):
         bonus = 0
         for ani in stage:
-            if ani.get_level() >= 2:
-                bonus += 1
+            try:
+                if ani.get_level() >= 2:
+                    bonus += 1
+            except:
+                continue
         return bonus * self.abilBonus * self.level
 
 class pig(aniFood):

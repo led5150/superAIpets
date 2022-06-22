@@ -18,6 +18,7 @@ class ScreenStuff:
         self.img_dir    = img_dir
         self.action_dir = action_dir
         self.situ_dir   = situ_dir
+        self.sleeptime  = 0.2
         
         # Load the positions of each team name rectangle to click when 
         # selecting a team name
@@ -79,6 +80,7 @@ class ScreenStuff:
     
     def excess_gold_back(self):
         self.click_on(self.excess_gold_back_coords[0], self.excess_gold_back_coords[1], clicks=1)
+        self.clickthrough()
 
     def excess_gold_confirm(self):
         self.click_on(self.excess_gold_conf_coords[0], self.excess_gold_conf_coords[1], clicks=1)
@@ -152,7 +154,7 @@ class ScreenStuff:
 
         destX = (self.stage_coords[dest]['x'] // 2) + (self.stage_coords[0]['w'] // 4)
         destY = (self.stage_coords[dest]['y'] // 2) + (self.stage_coords[0]['h'] // 4)
-        self.click_on(petX, petY, clicks=1)
+        self.click_on(petX, petY, clicks=1, sleeptime=self.sleeptime)
         self.click_on(destX, destY, clicks=1)
         self.clickthrough()
 
@@ -178,7 +180,7 @@ class ScreenStuff:
             destY = (self.stage_coords[dest]['y'] // 2) + (self.stage_coords[dest]['h'] // 4)
            
 
-        self.click_on(petX, petY, clicks=1)
+        self.click_on(petX, petY, clicks=1, sleeptime=self.sleeptime)
         self.click_on(destX, destY, clicks=1)
         if isinstance(dest, int) or dest == "sell":
             sleep(0.5)
@@ -212,9 +214,10 @@ class ScreenStuff:
         return self.curr_img
 
 
-    def click_on(self, x, y, clicks=2, situ=None):
+    def click_on(self, x, y, clicks=2, situ=None, sleeptime=0):
         if pg.onScreen(x, y):
             pg.click(x=x, y=y, clicks=clicks, interval=0.1, button="left")
+            sleep(sleeptime)
         else:
             print(f"NOTTTTT ON SCREEN! X is {x}, y is: {y}")
         
